@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ТОК — Разморозка</title>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;700;900&family=Golos+Text:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ice:#7FD8FF; --dark:#0B0E14; --amber:#FFB347;
+    --tint:#0e1a2b;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{height:100%;overflow:hidden;background:var(--dark);color:#fff;font-family:'Golos Text',Arial,sans-serif;}
+  h1,h2,h3,.logo{font-family:'Unbounded','Arial Black',sans-serif;}
+
+  /* ===== Слайды ===== */
+  .slide{position:fixed;inset:0;opacity:0;visibility:hidden;transition:opacity .7s,visibility .7s;}
+  .slide.active{opacity:1;visibility:visible;}
+  .slide .bg{position:absolute;inset:0;background-size:cover;background-position:center;filter:brightness(.55);}
+  .slide .tint{position:absolute;inset:0;background:var(--tint);opacity:.28;transition:background 1.2s;pointer-events:none;}
+  .slide .content{position:relative;z-index:2;height:100%;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:4vh 6vw;gap:18px;}
+
+  /* фоны слайдов: картинка + градиент-заглушка */
+  #s0 .bg,#s1 .bg{background-image:url('img/hero.jpg'),linear-gradient(160deg,#0B0E14,#0e2233);}
+  #s2 .bg,#s3 .bg,#s4 .bg{background-image:linear-gradient(160deg,#0B0E14,#0e1a2b);}
+  #s5 .bg{background-image:url('img/final.jpg'),linear-gradient(160deg,#0B0E14,#2b1a0e);}
+
+  .logo{font-size:clamp(18px,2.4vw,26px);letter-spacing:.4em;color:var(--ice);text-transform:uppercase;}
+  .temp-main{font-size:clamp(70px,16vw,180px);font-weight:900;color:var(--ice);text-shadow:0 0 40px rgba(127,216,255,.4);cursor:pointer;user-select:none;}
+  .sub{font-size:clamp(15px,1.8vw,20px);color:#cfe6f5;max-width:640px;}
+  .hint-small{font-size:13px;color:#7f97a8;}
+
+  .btn{display:inline-block;padding:14px 34px;border:1px solid var(--ice);color:var(--ice);background:rgba(127,216,255,.06);font-family:'Unbounded';font-size:15px;letter-spacing:.08em;cursor:pointer;border-radius:4px;transition:.25s;}
+  .btn:hover{background:var(--ice);color:var(--dark);}
+
+  .qr-slot{margin-top:12px;display:flex;flex-direction:column;align-items:center;gap:6px;}
+  .qr-slot img{width:110px;height:110px;border-radius:8px;background:#fff;padding:6px;}
+
+  /* ===== Глобальный термометр ===== */
+  #gthermo{position:fixed;left:22px;top:50%;transform:translateY(-50%);z-index:50;display:flex;flex-direction:column;align-items:center;gap:8px;}
+  #gthermo-value{font-family:'Unbounded';font-size:14px;color:var(--ice);}
+  #gthermo-track{width:10px;height:220px;background:rgba(255,255,255,.07);border-radius:6px;overflow:hidden;position:relative;}
+  #gthermo-fill{position:absolute;bottom:0;left:0;width:100%;height:0%;background:linear-gradient(0deg,var(--ice),var(--amber));transition:height 1s;}
+  @media (max-width:700px){#gthermo{display:none;}}
+
+  /* ===== Точки навигации ===== */
+  #dots{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:50;display:flex;gap:12px;}
+  #dots span{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.25);cursor:pointer;transition:.25s;}
+  #dots span.active{background:var(--amber);transform:scale(1.3);}
+
+  /* ===== Слайд 1: Ситуация ===== */
+  .choice-row{display:flex;gap:20px;flex-wrap:wrap;justify-content:center;}
+  .verdict{min-height:48px;font-size:clamp(15px,2vw,20px);color:var(--amber);}
+
+  /* ===== Слайд 2: Метод ===== */
+  .method-wrap{display:flex;gap:40px;align-items:center;flex-wrap:wrap;justify-content:center;}
+  .ice-boulder{position:relative;width:210px;height:210px;flex:0 0 auto;}
+  .ice-bg{position:absolute;inset:0;background-image:url('img/ice.jpg'),linear-gradient(135deg,#0e2a3a,#0B0E14);background-size:cover;clip-path:polygon(20% 5%,80% 0%,95% 45%,75% 95%,25% 90%,5% 40%);box-shadow:0 0 40px rgba(127,216,255,.25);}
+  .cracks{position:absolute;inset:0;width:100%;height:100%;}
+  .cracks path{fill:none;stroke:var(--amber);stroke-width:3;opacity:0;transition:opacity .6s;}
+  .ice-boulder.step1 .c1{opacity:1;}
+  .ice-boulder.step2 .c2{opacity:1;}
+  .ice-boulder.step3 .c3{opacity:1;}
+  .steps{display:flex;flex-direction:column;gap:14px;max-width:480px;text-align:left;}
+  .step{border:1px solid rgba(127,216,255,.3);border-radius:6px;padding:14px 18px;cursor:pointer;transition:.25s;background:rgba(255,255,255,.02);}
+  .step:hover{border-color:var(--ice);}
+  .step h3{font-size:16px;color:var(--ice);margin-bottom:4px;}
+  .step p{font-size:14px;color:#cfe6f5;display:none;}
+  .step.open p{display:block;}
+  .step.open{border-color:var(--amber);}
+
+  /* ===== Слайд 3: Пульт разморозки ===== */
+  #barrier-count{font-family:'Unbounded';font-size:16px;color:var(--ice);letter-spacing:.1em;}
+  .barrier-row{display:flex;gap:22px;flex-wrap:wrap;justify-content:center;}
+  .barrier{position:relative;width:250px;min-height:300px;border-radius:8px;overflow:hidden;cursor:pointer;user-select:none;touch-action:none;border:1px solid rgba(127,216,255,.3);}
+  .barrier-ice{position:absolute;inset:0;background-image:url('img/ice.jpg'),linear-gradient(135deg,#0e2a3a,#0B0E14);background-size:cover;opacity:calc(1 - var(--hold,0)*0.8);transition:opacity .3s;}
+  .barrier.melted .barrier-ice{opacity:.12;}
+  .barrier-warm{position:absolute;left:50%;top:50%;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(255,179,71,.75),transparent 70%);transform:translate(-50%,-50%) scale(var(--hold,0));pointer-events:none;}
+  .barrier-info{position:relative;z-index:2;height:100%;display:flex;flex-direction:column;justify-content:center;gap:8px;padding:20px;text-align:center;}
+  .barrier-info h3{font-size:20px;color:var(--ice);}
+  .barrier-fear{font-size:14px;color:#cfe6f5;}
+  .barrier-hint{font-size:12px;color:#7f97a8;}
+  .barrier-proof,.barrier-promise{font-size:14px;color:#fff;display:none;}
+  .barrier-promise{color:var(--amber);font-family:'Unbounded';font-size:16px;}
+  .barrier.melted .barrier-proof,.barrier.melted .barrier-promise{display:block;}
+  .barrier.melted .barrier-hint{display:none;}
+
+  /* ===== Слайд 4: Носители ===== */
+  .carriers{display:flex;gap:26px;flex-wrap:wrap;justify-content:center;align-items:flex-start;}
+  .carrier-card{width:280px;border:1px solid rgba(127,216,255,.25);border-radius:8px;padding:18px;background:rgba(255,255,255,.02);}
+  .carrier-card h3{font-size:15px;color:var(--ice);margin-bottom:10px;}
+  .thermo-demo{display:flex;flex-direction:column;gap:12px;}
+  .thermo-demo input[type=range]{width:100%;accent-color:var(--amber);}
+  #thermo-outside{font-size:14px;color:#cfe6f5;}
+  #thermo-inside{font-size:14px;color:var(--amber);}
+  #thermo-message{font-size:16px;color:var(--amber);opacity:.3;transition:opacity .3s,text-shadow .3s;}
+  .cocoon{position:relative;width:280px;height:180px;border-radius:8px;overflow:hidden;border:1px solid rgba(127,216,255,.25);}
+  .cocoon-layer{position:absolute;inset:0;background-size:cover;background-position:center;transition:opacity 1s;}
+  .cocoon-layer.cold{background-image:url('img/cold.jpg'),linear-gradient(135deg,#0e2a3a,#0B0E14);opacity:1;}
+  .cocoon-layer.warm{background-image:url('img/warm.jpg'),linear-gradient(135deg,#3a2a0e,#2b1a0e);opacity:0;}
+  .cocoon.warm .cold{opacity:0;}
+  .cocoon.warm .warm{opacity:1;}
+  #cocoon-btn{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);z-index:3;padding:8px 18px;font-size:13px;}
+
+  /* ===== Слайд 5: Финал ===== */
+  .slogan{font-size:clamp(26px,5vw,52px);font-weight:900;color:var(--amber);text-shadow:0 0 30px rgba(255,179,71,.35);}
+  #promo{display:inline-block;padding:12px 30px;border:1px dashed var(--amber);color:var(--amber);font-family:'Unbounded';font-size:22px;letter-spacing:.2em;cursor:pointer;border-radius:6px;}
+  #course-done{font-size:16px;color:var(--ice);display:none;}
+  #copy-toast{position:fixed;bottom:70px;left:50%;transform:translateX(-50%);background:var(--amber);color:var(--dark);padding:8px 18px;border-radius:20px;font-size:13px;opacity:0;transition:.3s;z-index:100;}
+  #copy-toast.show{opacity:1;}
+
+  /* ===== Пасхалка ===== */
+  #egg{position:fixed;inset:0;z-index:200;background:var(--dark);display:none;flex-direction:column;justify-content:center;align-items:center;gap:18px;cursor:pointer;}
+  #egg.show{display:flex;}
+  #egg img{max-width:80vw;max-height:60vh;border-radius:8px;}
+  #egg p{color:#7f97a8;font-size:16px;letter-spacing:.2em;}
+</style>
+</head>
+<body>
+
+<!-- Глобальный термометр -->
+<div id="gthermo">
+  <div id="gthermo-value">−30°</div>
+  <div id="gthermo-track"><div id="gthermo-fill"></div></div>
+</div>
+
+<!-- Точки навигации -->
+<div id="dots"></div>
+
+<!-- Звуки -->
+<audio id="snd-wind" loop src="audio/wind.mp3"></audio>
+<audio id="snd-crack" src="audio/crack.mp3"></audio>
+
+<!-- Слайд 0: Вход -->
+<section class="slide active" id="s0">
+  <div class="bg"></div><div class="tint"></div>
+  <div class="content">
+    <div class="logo">Ток</div>
+    <h1 class="temp-main" id="temp-main">−30°</h1>
+    <p class="sub">Иркутск. Зима. Урок разморозки.</p>
+    <button class="btn" id="btn-start">Начать урок</button>
+    <div class="qr-slot">
+      <img src="img/qr.png" alt="QR" onerror="this.style.display='none'">
+      <p class="hint-small">Наведите камеру — пульт у вас в руках</p>
+    </div>
+    <p class="hint-small">Листайте стрелками →</p>
+  </div>
+</section>
+
+<!-- Слайд 1: Ситуация -->
+<section class="slide" id="s1">
+  <div class="bg"></div><div class="tint"></div>
+  <div class="content">
+    <h2>Кто бы сел в электрокар в −30?</h2>
+    <p class="sub">Минус тридцать. Автобус не пришёл. Такси с двойным коэффициентом. Приложение предлагает машину.</p>
+    <div class="choice-row">
+      <button class="btn" data-choice="yes">Сел бы</button>
+      <button class="btn" data-choice="no">Побоялся бы</button>
+    </div>
+    <p class="verdict" id="verdict"></p>
+  </div>
+</section>
+
+<!-- Слайд 2: Метод -->
+<section class="slide" id="s2">
+  <div class="bg"></div><div class="tint"></div>
+  <div class="content">
+    <h2>Ледяной барьер</h2>
+    <div class="method-wrap">
+      <div class="ice-boulder" id="boulder">
+        <div class="ice-bg"></div>
+        <svg class="cracks" viewBox="0 0 200 200">
+          <path class="c1" d="M100,10 L90,70 L110,130"/>
+          <path class="c2" d="M60,50 L100,80 L80,150"/>
+          <path class="c3" d="M140,60 L110,100 L150,160"/>
+        </svg>
+      </div>
+      <div class="steps">
+        <div class="step" data-step="1">
+          <h3>1. Страх</h3>
+          <p>Не начинаем с продукта. Спрашиваем: чего человек боится? В мороз — что не заведётся, что замёрзнет, что встанет.</p>
+        </div>
+        <div class="step" data-step="2">
+          <h3>2. Доказательство</h3>
+          <p>Ищем факт продукта, который закрывает страх. Без факта обещание — пустота. Прогрев, честный запас хода, зимние шины.</p>
+        </div>
+        <div class="step" data-step="3">
+          <h3>3. Обещание</h3>
+          <p>Формулируем короткое сообщение из факта. Лёд трескается от факта, а не от красивых слов.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Слайд 3: Пульт разморозки -->
+<section class="slide" id="s3">
+  <div class="bg"></div><div class="tint"></div>
+  <div class="content">
+    <h2>Пульт разморозки</h2>
+    <div id="barrier-count">Снято барьеров: 0/3</div>
+    <div class="barrier-row">
+
+      <div class="barrier" data-key="cold">
+        <div class="barrier-ice"></div>
+        <div class="barrier-warm"></div>
+        <div class="barrier-info">
+          <h3>Холод</h3>
+          <p class="barrier-fear">«Салон будет ледяной»</p>
+          <p class="barrier-hint">Удерживайте, чтобы разморозить</p>
+          <p class="barrier-proof">Доказательство: прогрев из приложения, пока вы дома.</p>
+          <p class="barrier-promise">Садитесь в тепло</p>
+        </div>
+      </div>
+
+      <div class="barrier" data-key="charge">
+        <div class="barrier-ice"></div>
+        <div class="barrier-warm"></div>
+        <div class="barrier-info">
+          <h3>Заряд</h3>
+          <p class="barrier-fear">«Батарея сядет в дороге»</p>
+          <p class="barrier-hint">Удерживайте, чтобы разморозить</p>
+          <p class="barrier-proof">Доказательство: запас хода считается по-сибирски — мороз, печка, пробки.</p>
+          <p class="barrier-promise">−30° уже в расчёте</p>
+        </div>
+      </div>
+
+      <div class="barrier" data-key="road">
+        <div class="barrier-ice"></div>
+        <div class="barrier-warm"></div>
+        <div class="barrier-info">
+          <h3>Дорога</h3>
+          <p class="barrier-fear">«Машина не справится с зимой»</p>
+          <p class="barrier-hint">Удерживайте, чтобы разморозить</p>
+          <p class="barrier-proof">Доказательство: зимние шины, предрейсовая проверка, термостабилизация батареи.</p>
+          <p class="barrier-promise">Зима — наш штатный режим</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- Слайд 4: Носители -->
+<section class="slide" id="s4">
+  <div class="bg"></div><div class="tint"></div>
+  <div class="content">
+    <h2>Где живёт разморозка</h2>
+    <div class="carriers">
+
+      <div class="carrier-card thermo-demo">
+        <h3>Термометр сомнений</h3>
+        <input type="range" id="thermo-slider" min="-30" max="0" value="-30" step="1">
+        <p id="thermo-outside">На улице −30°</p>
+        <p id="thermo-inside">В салоне +22°</p>
+        <p id="thermo-message">Разница — одна кнопка</p>
+      </div>
+
+      <div class="carrier-card">
+        <h3>Соцсети</h3>
+        <p>Пятнадцатисекундные ролики «запуск в минус тридцать». Было — ледяное стекло, стало — тёплый салон. Таймер, факты. Не обещаем — показываем.</p>
+      </div>
+
+      <div class="carrier-card">
+        <h3>Приложение</h3>
+        <p>Кнопка «Тёплый кокон», честный запас хода, зарядки по маршруту. От сомнения до первой поездки — три касания.</p>
+      </div>
+
+      <div class="cocoon" id="cocoon">
+        <div class="cocoon-layer cold"></div>
+        <div class="cocoon-layer warm"></div>
+        <button class="btn" id="cocoon-btn">Прогреть</button>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- Слайд 5: Финал -->
+<section class="slide" id="s5">
+  <div class="bg"></div><div class="tint"></div>
+  <div class="content">
+    <div class="logo">Ток</div>
+    <p class="slogan">Иркутская зима. Тепло по пути.</p>
+    <div id="promo">ТЕПЛО</div>
+    <p class="hint-small">Тап — промокод скопирован</p>
+    <p id="course-done">Курс пройден. Все барьеры сняты.</p>
+  </div>
+</section>
+
+<!-- Пасхалка -->
+<div id="egg">
+  <img src="img/egg.jpg" alt="" onerror="this.style.display='none'">
+  <p>тепло где-то рядом</p>
+</div>
+
+<div id="copy-toast">скопировано, согревайтесь</div>
+
+<script>
+// ===== Навигация =====
+const slides=[...document.querySelectorAll('.slide')];
+const dotsWrap=document.getElementById('dots');
+slides.forEach((s,i)=>{
+  const d=document.createElement('span');
+  if(i===0)d.classList.add('active');
+  d.addEventListener('click',()=>goTo(i));
+  dotsWrap.appendChild(d);
+});
+const dots=[...dotsWrap.children];
+let cur=0;
+const temps=[-30,-25,-15,-5,5,22];
+const tints=['#0e1a2b','#0e1a2b','#0e1a2b','#1a1a2b','#2b1a1a','#2b1a0e'];
+
+function goTo(i){
+  if(i<0||i>=slides.length)return;
+  slides[cur].classList.remove('active');
+  dots[cur].classList.remove('active');
+  cur=i;
+  slides[cur].classList.add('active');
+  dots[cur].classList.add('active');
+  updateThermo();
+}
+function updateThermo(){
+  const t=temps[cur];
+  document.getElementById('gthermo-value').textContent=(t>0?'+':'')+t+'°';
+  const pct=(t+30)/(22-(-30))*100;
+  document.getElementById('gthermo-fill').style.height=pct+'%';
+  document.documentElement.style.setProperty('--tint',tints[cur]);
+}
+updateThermo();
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight'||e.key===' '){e.preventDefault();goTo(cur+1);}
+  if(e.key==='ArrowLeft'){goTo(cur-1);}
+  if(e.key.toLowerCase()==='f'){document.documentElement.requestFullscreen?.();}
+});
+
+// ===== Звук старт =====
+document.getElementById('btn-start').addEventListener('click',()=>{
+  document.getElementById('snd-wind').play().catch(()=>{});
+  goTo(1);
+});
+
+// ===== Слайд 1: выбор =====
+document.querySelectorAll('[data-choice]').forEach(b=>{
+  b.addEventListener('click',()=>{
+    const v=b.dataset.choice;
+    document.getElementById('verdict').textContent=
+      v==='yes'
+      ?'Смело. Проверим, не замёрзнете ли вы на практике.'
+      :'Честно. Именно с этим страхом мы и будем работать.';
+  });
+});
+
+// ===== Слайд 2: метод =====
+document.querySelectorAll('.step').forEach(st=>{
+  st.addEventListener('click',()=>{
+    st.classList.toggle('open');
+    const n=st.dataset.step;
+    document.getElementById('boulder').classList.add('step'+n);
+  });
+});
+
+// ===== Слайд 3: hold-to-melt =====
+let meltedCount=0;
+function updateBarrierCount(){
+  document.getElementById('barrier-count').textContent='Снято барьеров: '+meltedCount+'/3';
+  if(meltedCount>=3){document.getElementById('course-done').style.display='block';}
+}
+document.querySelectorAll('.barrier').forEach(b=>{
+  let raf=null,start=0;
+  const dur=2000;
+  function onStart(e){
+    if(b.classList.contains('melted'))return;
+    e.preventDefault();
+    start=Date.now();
+    b.classList.add('holding');
+    raf=requestAnimationFrame(tick);
+  }
+  function tick(){
+    const p=Math.min((Date.now()-start)/dur,1);
+    b.style.setProperty('--hold',p);
+    if(p<1){raf=requestAnimationFrame(tick);}else{melt(b);}
+  }
+  function onEnd(){
+    if(b.classList.contains('melted'))return;
+    cancelAnimationFrame(raf);
+    b.classList.remove('holding');
+    b.style.setProperty('--hold',0);
+  }
+  function melt(b){
+    b.classList.add('melted');
+    b.classList.remove('holding');
+    document.getElementById('snd-crack').play().catch(()=>{});
+    meltedCount++;
+    updateBarrierCount();
+  }
+  b.addEventListener('mousedown',onStart);
+  b.addEventListener('touchstart',onStart,{passive:false});
+  b.addEventListener('mouseup',onEnd);
+  b.addEventListener('mouseleave',onEnd);
+  b.addEventListener('touchend',onEnd);
+  b.addEventListener('touchcancel',onEnd);
+});
+
+// ===== Слайд 4: термометр-ползунок =====
+const slider=document.getElementById('thermo-slider');
+const msg=document.getElementById('thermo-message');
+slider.addEventListener('input',()=>{
+  const t=parseInt(slider.value);
+  document.getElementById('thermo-outside').textContent='На улице '+t+'°';
+  const intensity=Math.abs(t)/30;
+  msg.style.opacity=0.3+intensity*0.7;
+  msg.style.textShadow='0 0 '+(intensity*20)+'px rgba(255,179,71,'+intensity+')';
+});
+
+// ===== Слайд 4: Тёплый кокон =====
+document.getElementById('cocoon-btn').addEventListener('click',()=>{
+  document.getElementById('cocoon').classList.toggle('warm');
+});
+
+// ===== Слайд 5: промокод =====
+document.getElementById('promo').addEventListener('click',()=>{
+  navigator.clipboard?.writeText('ТЕПЛО');
+  const toast=document.getElementById('copy-toast');
+  toast.classList.add('show');
+  setTimeout(()=>toast.classList.remove('show'),1600);
+});
+
+// ===== Пасхалка: тройной тап по -30° =====
+let clickCount=0,clickTimer=null;
+document.getElementById('temp-main').addEventListener('click',()=>{
+  clickCount++;
+  clearTimeout(clickTimer);
+  clickTimer=setTimeout(()=>{clickCount=0;},500);
+  if(clickCount===3){
+    document.getElementById('egg').classList.add('show');
+    clickCount=0;
+  }
+});
+document.getElementById('egg').addEventListener('click',()=>{
+  document.getElementById('egg').classList.remove('show');
+});
+</script>
+</body>
+</html>
